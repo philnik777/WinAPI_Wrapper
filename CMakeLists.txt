@@ -11,7 +11,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 add_subdirectory(src)
 
 set(WINAPI_LIBRARIES
-    ${SUBPROJECTS})
+    ${SUBPROJECTS}
+    PARENT_SCOPE
+)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     add_compile_options(
