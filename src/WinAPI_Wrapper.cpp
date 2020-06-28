@@ -52,16 +52,6 @@ void postQuitMessage(int32_t e) noexcept
 	PostQuitMessage(e);
 }
 
-void loop()
-{
-	MSG msg;
-	while (GetMessageW(&msg, nullptr, 0, 0))
-	{
-		TranslateMessage(&msg);
-		DispatchMessageW(&msg);
-	}
-}
-
 Edit::Edit(std::shared_ptr<Window> parent, std::wstring text, Rect pos)
 	: details::Library(L"Msftedit.dll")
 {

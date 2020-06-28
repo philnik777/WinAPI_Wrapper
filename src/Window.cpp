@@ -120,14 +120,14 @@ Window::~Window()
 		UnregisterClassW(windowName.c_str(), getHInstance());
 }
 
-Rect Window::getClientRect()
+Rect Window::getClientRect() noexcept
 {
 	RECT r;
 	GetClientRect(hwnd, &r);
 	return {r.left, r.top, r.right, r.bottom};
 }
 
-std::wstring Window::getWindowName()
+std::wstring Window::getWindowName() noexcept
 {
 	std::wstring name(static_cast<size_t>(GetWindowTextLengthW(hwnd) + 1),
 					  '\0');
@@ -135,22 +135,22 @@ std::wstring Window::getWindowName()
 	return name;
 }
 
-HFONT Window::getFont()
+HFONT Window::getFont() noexcept(false)
 {
 	return reinterpret_cast<HFONT>(sendMessage(WM_GETFONT, 0, 0));
 }
 
-LONG_PTR Window::setWindowStyle(LONG_PTR newStyle)
+LONG_PTR Window::setWindowStyle(LONG_PTR newStyle) noexcept
 {
 	return SetWindowLongPtrW(hwnd, GWL_STYLE, newStyle);
 }
 
-LONG_PTR Window::getWindowStyle()
+LONG_PTR Window::getWindowStyle() noexcept
 {
 	return GetWindowLongPtrW(hwnd, GWL_STYLE);
 }
 
-void Window::setVisible(bool isVisible)
+void Window::setVisible(bool isVisible) noexcept(false)
 {
 	if (isVisible)
 		ShowWindow(hwnd, SW_SHOW);
@@ -158,6 +158,11 @@ void Window::setVisible(bool isVisible)
 		ShowWindow(hwnd, SW_HIDE);
 	if (!UpdateWindow(hwnd))
 		throw std::runtime_error("Failed to update window");
+}
+
+bool Window::isVisible() noexcept
+{
+	return IsWindowVisible(hwnd);
 }
 
 void Window::setMenuBar(const std::shared_ptr<MenuBar> mb) noexcept
@@ -177,20 +182,30 @@ void Window::setPrevWindow(std::shared_ptr<Window> w) noexcept
 	{}
 }
 
-void Window::setCloseCallback(WndProcCustomCallback c)
+void Window::setCloseCallback(WndProcCustomCallback c) noexcept
 {
 	destroyCallback = c;
 }
 
-void Window::focus()
+void Window::focus() noexcept(false)
 {
 	if (!SetFocus(hwnd))
 		throw std::runtime_error("Failed to set focus");
 }
 
-void Window::close()
+void Window::close() noexcept(false)
 {
 	sendMessage(WM_CLOSE, 0, 0);
+}
+
+void Window::loop() noexcept
+{
+	MSG msg;
+	while (GetMessageW(&msg, nullptr, 0, 0))
+	{
+		TranslateMessage(&msg);
+		DispatchMessageW(&msg);
+	}
 }
 
 void Window::resizable(bool b) noexcept
@@ -239,7 +254,7 @@ void Window::insertCommandWindowCallback(LPARAM lParam,
 	commandWindowCallacks[lParam] = cb;
 }
 
-LRESULT Window::sendMessage(UINT msg, WPARAM wParam, LPARAM lParam)
+LRESULT Window::sendMessage(UINT msg, WPARAM wParam, LPARAM lParam) noexcept(false)
 {
 	SetLastError(0);
 	auto r = SendMessageW(hwnd, msg, wParam, lParam);

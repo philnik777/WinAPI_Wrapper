@@ -24,11 +24,11 @@ class Window : public std::enable_shared_from_this<Window>
 	Window(
 		const std::wstring& windowName,
 		std::shared_ptr<Window> parent = nullptr,
-		std::function<void()> createCallback = []() {});
+		std::function<void()> createCallback = []() {}) noexcept(false);
 	static std::shared_ptr<Window> create(
 		const std::wstring& windowName,
 		std::shared_ptr<Window> parent = nullptr,
-		std::function<void()> createCallback = []() {})
+		std::function<void()> createCallback = []() {}) noexcept(false)
 	{
 		return std::make_shared<Window>(windowName, parent, createCallback);
 	}
@@ -39,22 +39,24 @@ class Window : public std::enable_shared_from_this<Window>
 		return hwnd;
 	}
 
-	Rect getClientRect();
-	std::wstring getWindowName();
-	HFONT getFont();
+	Rect getClientRect() noexcept;
+	std::wstring getWindowName() noexcept;
+	HFONT getFont() noexcept(false);
 
-	LONG_PTR setWindowStyle(LONG_PTR newStyle);
-	LONG_PTR getWindowStyle();
+	LONG_PTR setWindowStyle(LONG_PTR newStyle) noexcept;
+	LONG_PTR getWindowStyle() noexcept;
 
-	void setVisible(bool isVisible = true);
+	void setVisible(bool isVisible = true) noexcept(false);
+	bool isVisible() noexcept;
 
 	void setMenuBar(const std::shared_ptr<MenuBar>) noexcept;
 	void setPrevWindow(std::shared_ptr<Window>) noexcept;
 
-	void setCloseCallback(WndProcCustomCallback callback);
+	void setCloseCallback(WndProcCustomCallback callback) noexcept;
 
-	void focus();
-	void close();
+	void focus() noexcept(false);
+	void close() noexcept(false);
+	void loop() noexcept;
 
 	void resizable(bool) noexcept;
 	bool resizable() noexcept;
@@ -73,7 +75,7 @@ class Window : public std::enable_shared_from_this<Window>
 	Window() = default;
 	bool isCustomWindow = true;
 
-	LRESULT sendMessage(UINT msg, WPARAM wParam, LPARAM lParam);
+	LRESULT sendMessage(UINT msg, WPARAM wParam, LPARAM lParam) noexcept(false);
 	void initCustomCallbacks();
 	WNDPROC getWindowCallback();
 	void setWindowCallback(WndProcDefaultCallback);
