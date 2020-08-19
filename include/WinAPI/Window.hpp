@@ -1,11 +1,15 @@
 #pragma once
 #include "details/WinAPI_Types.hpp"
 
+#include <chrono>
 #include <functional>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
+
+#define LOG_EXCEPTION(e)                                                       \
+	std::clog << __FILE__ << ':' << __LINE__ << ": " << e.what() << '\n'
 
 namespace WinAPI
 {
@@ -32,7 +36,7 @@ class Window : public std::enable_shared_from_this<Window>
 	{
 		return std::make_shared<Window>(windowName, parent, createCallback);
 	}
-	~Window();
+	virtual ~Window();
 
 	HWND getHandle() const noexcept
 	{
@@ -70,6 +74,7 @@ class Window : public std::enable_shared_from_this<Window>
 
 	void insertCommandWindowCallback(LPARAM,
 									 WndProcCustomCallback callback) noexcept;
+	void insertCallback(UINT message, std::weak_ptr<WndProcCustomCallback>);
 
   protected:
 	Window() = default;
@@ -79,21 +84,22 @@ class Window : public std::enable_shared_from_this<Window>
 	void initCustomCallbacks();
 	WNDPROC getWindowCallback();
 	void setWindowCallback(WndProcDefaultCallback);
-	void insertCallback(UINT message, WndProcCustomCallback);
 	void setStyle(uint32_t style, bool enable);
 	uint32_t getStyle(uint32_t style);
 	void setNextWindow(std::weak_ptr<Window>) noexcept;
 
 	HWND hwnd;
 	WndProcDefaultCallback defCallback;
-	WndProcCustomCallback destroyCallback
-		= [](HWND, WPARAM, LPARAM) -> LRESULT { return 0; };
+	std::shared_ptr<WndProcCustomCallback> destroyCallback;
 
-	std::map<UINT, WndProcCustomCallback> callbacks;
+	std::map<UINT, std::vector<std::weak_ptr<WndProcCustomCallback>>> callbacks;
 	std::map<LPARAM, WndProcCustomCallback> commandWindowCallacks;
 	std::weak_ptr<Window> prevWindow;
 	std::weak_ptr<Window> nextWindow;
 
 	std::shared_ptr<MenuBar> menuBar;
+
+  private:
+	std::shared_ptr<WndProcCustomCallback> commandCB;
 };
 }

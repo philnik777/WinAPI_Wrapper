@@ -30,7 +30,7 @@ class MenuBar
     auto getCallbacks()
     {
         std::vector<std::map<
-            uint32_t, std::tuple<std::function<void()>,
+            std::size_t, std::tuple<std::function<void()>,
                                  std::shared_ptr<details::ID_Allocation>>>>
             callbacks;
         for (auto& [_name, menu] : menus)

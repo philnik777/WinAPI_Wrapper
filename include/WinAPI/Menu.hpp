@@ -26,7 +26,7 @@ class Menu
     HMENU menu;
     std::map<std::wstring, HMENU> menus;
 
-    std::map<uint32_t,
+    std::map<std::size_t,
              std::tuple<std::function<void()>,
                         std::shared_ptr<details::ID_Allocation>>>
         callbacks;

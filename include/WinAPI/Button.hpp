@@ -19,5 +19,6 @@ class Button : public Window
 
   private:
 	std::function<void()> onClick = []() {};
+	std::shared_ptr<WndProcCustomCallback> cb;
 };
 }

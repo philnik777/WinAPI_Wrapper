@@ -25,6 +25,12 @@ class Edit : details::Library, public Window
     {
         return std::make_shared<Edit>(parent, text, pos);
     }
+
+    std::wstring getText();
+
+  private:
+	std::shared_ptr<WndProcCustomCallback> keydownCB;
+	std::shared_ptr<WndProcCustomCallback> charCB;
 };
 
 enum class BindPoint

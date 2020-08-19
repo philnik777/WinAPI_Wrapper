@@ -18,7 +18,7 @@ Button::Button(std::shared_ptr<Window> parent,
 	CreateWindowInfo wi;
 	wi.className = WC_BUTTONW;
 	wi.windowName = name.c_str();
-	wi.windowStyle = WS_CHILD | WS_VISIBLE;
+	wi.windowStyle = WS_CHILD;
 	wi.parent = parent->getHandle();
 	wi.windowArea = {pos.x, pos.y, 0, 0};
 	hwnd = createWindow(wi);

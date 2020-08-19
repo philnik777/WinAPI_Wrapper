@@ -7,7 +7,6 @@
 #include <functional>
 #include <iostream>
 #include <map>
-#include <stdexcept>
 #include <string>
 
 // clang-format off
@@ -58,42 +57,56 @@ Edit::Edit(std::shared_ptr<Window> parent, std::wstring text, Rect pos)
 	isCustomWindow = false;
 	CreateWindowInfo wi;
 	wi.className = MSFTEDIT_CLASS;
-	wi.windowStyle = WS_CHILD | WS_VISIBLE | WS_BORDER;
+	wi.windowStyle = WS_CHILD | WS_BORDER;
 	wi.extendedStyle = WS_EX_CLIENTEDGE;
 	wi.windowName = text.c_str();
 	wi.parent = parent->getHandle();
 	wi.windowArea = pos;
 	hwnd = createWindow(wi);
+	keydownCB = std::make_shared<WndProcCustomCallback>(
+		[this](HWND, WPARAM wParam, LPARAM) -> LRESULT {
+			if (wParam == VK_TAB)
+			{
+				if (HIWORD(GetKeyState(VK_SHIFT)))
+				{
+					try
+					{
+						std::shared_ptr(prevWindow)->focus();
+					}
+					catch (const std::exception&)
+					{}
+				}
+				else
+				{
+					try
+					{
+						std::shared_ptr(nextWindow)->focus();
+					}
+					catch (const std::exception&)
+					{}
+				}
+				return 0;
+			}
+			return 1;
+		});
+	insertCallback(WM_KEYDOWN, keydownCB);
+
+	charCB = std::make_shared<WndProcCustomCallback>(
+		[](HWND, WPARAM wParam, LPARAM) -> LRESULT {
+			if (wParam == '\t')
+				return 0;
+			return 1;
+		});
+
+	insertCallback(WM_CHAR, charCB);
 	initCustomCallbacks();
-	insertCallback(WM_KEYDOWN, [this](HWND, WPARAM wParam, LPARAM) -> LRESULT {
-		if (wParam == VK_TAB)
-		{
-			if (HIWORD(GetKeyState(VK_SHIFT)))
-			{
-				try
-				{
-					std::shared_ptr(prevWindow)->focus();
-				}
-				catch (const std::exception&)
-				{}
-			}
-			else
-			{
-				try
-				{
-					std::shared_ptr(nextWindow)->focus();
-				}
-				catch (const std::exception&)
-				{}
-			}
-		}
-		return 1;
-	});
-	insertCallback(WM_CHAR, [](HWND, WPARAM wParam, LPARAM) -> LRESULT {
-		if (wParam == '\t')
-			return 0;
-		return 1;
-	});
+}
+
+std::wstring Edit::getText()
+{
+	std::vector<wchar_t> buf(GetWindowTextLengthW(hwnd) + 1);
+	GetWindowTextW(hwnd, buf.data(), buf.size());
+	return buf.data();
 }
 
 Text::Text(std::shared_ptr<Window> parent,
@@ -105,7 +118,7 @@ Text::Text(std::shared_ptr<Window> parent,
 	isCustomWindow = false;
 	CreateWindowInfo wi;
 	wi.className = MSFTEDIT_CLASS;
-	wi.windowStyle = WS_CHILD | WS_VISIBLE;
+	wi.windowStyle = WS_CHILD;
 	wi.windowName = text.c_str();
 	wi.parent = parent->getHandle();
 	auto size = getTextSize(text, nullptr);

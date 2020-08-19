@@ -30,11 +30,11 @@ LRESULT CALLBACK defWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 				GetWindowLongPtrW(hwnd, GWLP_USERDATA));
 			if (defCall)
 				return defCall->operator()(hwnd, msg, wParam, lParam);
-			return DefWindowProcW(hwnd, msg, wParam, lParam);
+			else
+				return DefWindowProcW(hwnd, msg, wParam, lParam);
 		}
 	}
 }
-
 }
 
 namespace WinAPI
@@ -73,38 +73,60 @@ Window::Window(const std::wstring& wName,
 
 	defCallback
 		= [this](HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) -> LRESULT {
-		switch (msg)
+		try
 		{
-			case WM_CLOSE:
-				return destroyCallback(hwnd, wParam, lParam);
-			case WM_COMMAND:
-			{
-				auto cwcs = commandWindowCallacks;
-				try
-				{
-					return commandWindowCallacks.at(lParam)(hwnd, wParam,
-															lParam);
-				}
-				catch (const std::out_of_range&)
-				{}
-				if (!menuBar)
+			auto cbs = callbacks;
+			for (const auto& cb : callbacks.at(msg))
+				if (!cb.expired()
+					&& (cb.lock()->operator()(hwnd, wParam, lParam)) == 0)
 					return 0;
-				for (auto& callbacks : menuBar->getCallbacks())
-				{
-					for (auto& [id, _callback] : callbacks)
-					{
-						auto& [callback, _id] = _callback;
-						if (id == LOWORD(wParam))
-						{
-							callback();
-							return 0;
-						}
-					}
-				}
-			}
+		}
+		catch (std::out_of_range& e)
+		{
+			LOG_EXCEPTION(e);
 		}
 		return DefWindowProcW(hwnd, msg, wParam, lParam);
 	};
+
+	destroyCallback = std::make_shared<WndProcCustomCallback>(
+		[](HWND hWnd, WPARAM wParam, LPARAM lParam) -> LRESULT {
+			PostQuitMessage(0);
+			return 0;
+		});
+
+	callbacks[WM_CLOSE].emplace_back(destroyCallback);
+
+	commandCB = std::make_shared<WndProcCustomCallback>(
+		[this](HWND hwnd, WPARAM wParam, LPARAM lParam) -> LRESULT {
+			try
+			{
+				auto cwcbs = commandWindowCallacks;
+				return commandWindowCallacks.at(lParam)(hwnd, wParam, lParam);
+			}
+			catch (const std::out_of_range& e)
+			{
+				std::clog << __FILE__ << ':' << __LINE__
+						  << ":std::out_of_range:" << e.what() << '\n';
+			}
+
+			if (!menuBar)
+				return 0;
+
+			for (auto& callbacks : menuBar->getCallbacks())
+			{
+				for (auto& [id, _callback] : callbacks)
+				{
+					auto& [callback, _id] = _callback;
+					if (id == LOWORD(wParam))
+					{
+						callback();
+						return 0;
+					}
+				}
+			}
+			return 0;
+		});
+	callbacks[WM_COMMAND].emplace_back(commandCB);
 
 	SetWindowLongPtrW(hwnd, GWLP_USERDATA,
 					  reinterpret_cast<LONG_PTR>(&defCallback));
@@ -184,7 +206,19 @@ void Window::setPrevWindow(std::shared_ptr<Window> w) noexcept
 
 void Window::setCloseCallback(WndProcCustomCallback c) noexcept
 {
-	destroyCallback = c;
+	destroyCallback = std::make_shared<WndProcCustomCallback>(c);
+
+	bool replaced = false;
+	for (auto& c : callbacks[WM_CLOSE])
+	{
+		if (c.expired())
+		{
+			c = destroyCallback;
+			break;
+		}
+	}
+	if (!replaced)
+		callbacks[WM_CLOSE].emplace_back(destroyCallback);
 }
 
 void Window::focus() noexcept(false)
@@ -254,7 +288,8 @@ void Window::insertCommandWindowCallback(LPARAM lParam,
 	commandWindowCallacks[lParam] = cb;
 }
 
-LRESULT Window::sendMessage(UINT msg, WPARAM wParam, LPARAM lParam) noexcept(false)
+LRESULT
+Window::sendMessage(UINT msg, WPARAM wParam, LPARAM lParam) noexcept(false)
 {
 	SetLastError(0);
 	auto r = SendMessageW(hwnd, msg, wParam, lParam);
@@ -292,8 +327,9 @@ void Window::initCustomCallbacks()
 							LPARAM lParam) -> LRESULT {
 		try
 		{
-			if (!callbacks.at(msg)(hwnd, wParam, lParam))
-				return 0;
+			for (const auto& cb : callbacks.at(msg))
+				if (cb.lock()->operator()(hwnd, wParam, lParam) == 0)
+					return 0;
 		}
 		catch (std::out_of_range&)
 		{}
@@ -314,12 +350,23 @@ void Window::setWindowCallback(WndProcDefaultCallback c)
 			hwnd, GWLP_WNDPROC,
 			reinterpret_cast<LONG_PTR>(
 				c.target<LRESULT(HWND, UINT, WPARAM, LPARAM)>())))
-		throw std::runtime_error("Failed to insert Wndow Procedure");
+		throw std::runtime_error("Failed to insert Window Procedure");
 }
 
-void Window::insertCallback(UINT message, WndProcCustomCallback c)
+void Window::insertCallback(UINT message,
+							std::weak_ptr<WndProcCustomCallback> c)
 {
-	callbacks[message] = c;
+	bool emplaced = false;
+	for (auto& cb : callbacks[message])
+	{
+		if (cb.expired())
+		{
+			cb = c;
+			emplaced = true;
+		}
+	}
+	if (!emplaced)
+		callbacks[message].emplace_back(c);
 }
 
 void Window::setStyle(uint32_t style, bool enable)

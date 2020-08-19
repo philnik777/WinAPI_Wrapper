@@ -8,7 +8,8 @@ add_library(__winapi_src
 	Menu.cpp
 	MenuBar.cpp
 	TabControl.cpp
-	Window.cpp)
+	Window.cpp
+	WinAPI_Wrapper.cpp "DatePicker.cpp")
 
 add_subdirectory(details)
 set(SUBPROJECTS ${SUBPROJECTS} __winapi_src PARENT_SCOPE)
